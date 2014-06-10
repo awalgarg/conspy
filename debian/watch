@@ -1,0 +1,3 @@
+version=3
+
+https://sourceforge.net/projects/conspy/files/ /projects/conspy/files/conspy-(\d[^-]*)[^/]*/
