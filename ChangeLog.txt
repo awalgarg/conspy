@@ -1,3 +1,6 @@
+conspy-1.12 Wed, 16 Sep 2015 21:23:09 +1000
+  Bug: Fix memory leak.
+
 conspy-1.11 Wed, 16 Sep 2015 20:36:43 +1000
   Bug: Use proper uscan redirector.
   Bug: Keyboard not working on amd64.

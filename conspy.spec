@@ -1,6 +1,6 @@
 Summary:	Remote control for text mode virtual consoles
 Name:		conspy
-Version:	1.11
+Version:	1.12
 Release:	1ras
 Distribution:	RedHat 7.2 Contrib
 Group:		Applications/System

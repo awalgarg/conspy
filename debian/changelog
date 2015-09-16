@@ -1,3 +1,9 @@
+conspy (1.12-1) unstable; urgency=low
+
+  * New upstream release rebasing for sourceforge.
+
+ -- Russell Stuart <russell-debian@stuart.id.au>  Wed, 16 Sep 2015 21:23:59 +1000
+
 conspy (1.11-1) unstable; urgency=low
 
   * New upstream release rebasing for sourceforge.

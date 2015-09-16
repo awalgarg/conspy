@@ -68,7 +68,7 @@ extern int errno;
  * Version info.
  */
 static char conspy_date[]	= "2015-09-16";
-static char conspy_version[]	= "1.11";
+static char conspy_version[]	= "1.12";
 
 /*
  * VGA colour definitions, as found in a nibble in an attribute
@@ -620,6 +620,7 @@ static void conspy(int use_colour)
       if (buffer_size <= vidbuf_size)
 	break;
       vidbuf_size = buffer_size;
+      free(vidbuf);
       vidbuf = checked_malloc(vidbuf_size);
     }
     if (bytes_read != buffer_size)
