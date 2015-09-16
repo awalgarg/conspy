@@ -1,3 +1,11 @@
+conspy-1.11 Wed, 16 Sep 2015 20:36:43 +1000
+  Bug: Use proper uscan redirector.
+  Bug: Keyboard not working on amd64.
+  New: Dynamically allocate screen size so any size screen
+       can be accommodated.
+       Closes: https://sourceforge.net/p/conspy/tickets/2/
+  New: New version of Makefile.release
+
 conspy-1.10 Fri,  9 May 2014 19:46:16 +1000
   New: Customise build system for new home - SourceForge.
 

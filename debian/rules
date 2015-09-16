@@ -19,12 +19,7 @@ endif
 
 .PHONY:	get-orig-source
 get-orig-source:
-	version=$(shell \
-	    wget -O - "http://sourceforge.net/projects/$(ME)/files/" | \
-	    sed -n 's;.*<a href="/projects/$(ME)/files/$(ME)-\([^/]*\)/".*;\1;p' | \
-	    sort --version-sort -r | sed 1q); \
-	wget "http://downloads.sourceforge.net/$(ME)/$(ME)-$${version}/$(ME)-$${version%-*}.tar.gz"; \
-	mv "$(ME)-$${version%-*}.tar.gz" "$(ME)_$${version%-*}.orig.tar.gz"
+	uscan --force-download --destdir=.
 
 .PHONY:	clean
 clean:

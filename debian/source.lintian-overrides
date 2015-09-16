@@ -1,4 +1,0 @@
-#
-# The sourceforge qa redirector always fails for us.
-#
-conspy source: debian-watch-file-should-use-sf-redirector

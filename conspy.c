@@ -14,7 +14,7 @@
  * License
  * -------
  *
- * Copyright (c) 2009-2014 Russell Stuart.
+ * Copyright (c) 2009-2014,2015 Russell Stuart.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -67,8 +67,8 @@ extern int errno;
 /*
  * Version info.
  */
-static char conspy_date[]	= "2014-06-10";
-static char conspy_version[]	= "1.10";
+static char conspy_date[]	= "2015-09-16";
+static char conspy_version[]	= "1.11";
 
 /*
  * VGA colour definitions, as found in a nibble in an attribute
@@ -244,7 +244,7 @@ struct vidbuf {
   unsigned char		vidbuf_columns;		/* Columns on screen */
   unsigned char		vidbuf_curcolumn;	/* Column cursor is in */
   unsigned char		vidbuf_curline;		/* Line cursor is in */
-  struct vidchar	vidbuf_chars[200*80];	/* Char in VGA video buf */
+  struct vidchar	vidbuf_chars[0];	/* Char in VGA video buf */
 };
 
 /*
@@ -454,6 +454,17 @@ static void syserror(char* message, ...)
 }
 
 /*
+ * Allocate some memory.
+ */
+static void* checked_malloc(size_t bytes)
+{
+  void* result = malloc(bytes);
+  if (result == 0)
+    syserror("memory allocation failed");
+  return result;
+}
+
+/*
  * Die, possibly from a signal.
  */
 static void finish(int sig)
@@ -562,7 +573,7 @@ static void conspy(int use_colour)
   int			ioerror_count;
   int			key_count;
   int			key_index;
-  long			keyboard_mode;
+  uint32_t		keyboard_mode;
   char			keys_pressed[256];
   unsigned int		last_attribute;
   unsigned int		last_columns;
@@ -576,7 +587,8 @@ static void conspy(int use_colour)
   int			tty_result;
   unsigned int		video_attribute;
   int			video_char;
-  struct vidbuf		vidbuf;
+  struct vidbuf*	vidbuf;
+  size_t		vidbuf_size;
   struct vidchar*	vidchar;
 
   curses_colour = 0;
@@ -588,36 +600,39 @@ static void conspy(int use_colour)
   last_attribute = ~0U;
   last_columns = 0;
   last_rows = 0;
+  vidbuf_size = sizeof(*vidbuf);
+  vidbuf = checked_malloc(vidbuf_size);
   for (;;)
   {
     /*
      * Read the video buffer.
      */
-    if (lseek(device_handle, 0L, SEEK_SET) != 0L)
-      syserror(device_name);
-    bytes_read = read(device_handle, &vidbuf, sizeof(vidbuf));
-    if (bytes_read == -1)
-      syserror(device_name);
-    buffer_size = 4 +
-	vidbuf.vidbuf_lines * vidbuf.vidbuf_columns * sizeof(struct vidchar);
-    if (buffer_size > (int)sizeof(vidbuf))
+    for (;;)
     {
-      fprintf(
-	  stderr, "%s: screen too large.  I only handle up to 200x80.\n", me);
-      cleanup();
-      exit(1);
+      if (lseek(device_handle, 0L, SEEK_SET) != 0L)
+	syserror(device_name);
+      bytes_read = read(device_handle, vidbuf, vidbuf_size);
+      if (bytes_read < sizeof(*vidbuf))
+	syserror(device_name);
+      buffer_size =
+	  sizeof(*vidbuf) +
+	  vidbuf->vidbuf_lines * vidbuf->vidbuf_columns * sizeof(struct vidchar);
+      if (buffer_size <= vidbuf_size)
+	break;
+      vidbuf_size = buffer_size;
+      vidbuf = checked_malloc(vidbuf_size);
     }
     if (bytes_read != buffer_size)
       syserror("read wrong number of chars");
     /*
      * If the screen size has changed blank out the unused portions.
      */
-    if (vidbuf.vidbuf_lines < last_rows && last_rows < (unsigned)LINES)
+    if (vidbuf->vidbuf_lines < last_rows && last_rows < (unsigned)LINES)
     {
-      move(vidbuf.vidbuf_lines, 0);
+      move(vidbuf->vidbuf_lines, 0);
       clrtobot();
     }
-    if (vidbuf.vidbuf_columns < last_columns && last_columns < (unsigned)COLS)
+    if (vidbuf->vidbuf_columns < last_columns && last_columns < (unsigned)COLS)
     {
       for (line = 0; line < last_rows && line < (unsigned)LINES; line += 1)
       {
@@ -625,20 +640,20 @@ static void conspy(int use_colour)
 	clrtoeol();
       }
     }
-    last_rows = vidbuf.vidbuf_lines;
-    last_columns = vidbuf.vidbuf_columns;
+    last_rows = vidbuf->vidbuf_lines;
+    last_columns = vidbuf->vidbuf_columns;
     /*
      * Write the data to the screen.
      */
-    vidchar = vidbuf.vidbuf_chars;
-    for (line = 0; line < vidbuf.vidbuf_lines && line < (unsigned)LINES; line += 1)
+    vidchar = vidbuf->vidbuf_chars;
+    for (line = 0; line < vidbuf->vidbuf_lines && line < (unsigned)LINES; line += 1)
     {
       line_chars = 0;
-      for (column = 0; column < vidbuf.vidbuf_columns; column += 1)
+      for (column = 0; column < vidbuf->vidbuf_columns; column += 1)
       {
 	if (column >= (unsigned)COLS)
 	{
-	  vidchar += vidbuf.vidbuf_columns - column;
+	  vidchar += vidbuf->vidbuf_columns - column;
 	  break;
 	}
 	video_attribute = VIDCHAR_ATTRIBUTE(vidchar);
@@ -681,8 +696,8 @@ static void conspy(int use_colour)
       addchnstr(line_buf, line_chars);
       wchgat(stdscr, line_chars, curses_attribute, curses_colour, 0);
     }
-    if (vidbuf.vidbuf_curline < LINES && vidbuf.vidbuf_curcolumn < COLS)
-      move(vidbuf.vidbuf_curline, vidbuf.vidbuf_curcolumn);
+    if (vidbuf->vidbuf_curline < LINES && vidbuf->vidbuf_curcolumn < COLS)
+      move(vidbuf->vidbuf_curline, vidbuf->vidbuf_curcolumn);
     refresh();
     /*
      * Wait for 1/4 or a second, or for a character to be pressed.
@@ -719,7 +734,7 @@ static void conspy(int use_colour)
       escape_pressed = 0;		/* That ends any exit sequence */
       escape_notpressed = 0;
     }
-    for (key_index = key_count; key_index<key_count+bytes_read; key_index += 1)
+    for (key_index = key_count; key_index < key_count+bytes_read; key_index += 1)
     {					/* See if escape pressed 3 times */
       if (keys_pressed[key_index] != '\033')
 	escape_pressed = 0;

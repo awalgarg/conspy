@@ -1,3 +1,10 @@
+conspy (1.11-1) unstable; urgency=low
+
+  * New upstream release rebasing for sourceforge.
+  * Fix uscan redirector.
+
+ -- Russell Stuart <russell-debian@stuart.id.au>  Wed, 16 Sep 2015 20:37:42 +1000
+
 conspy (1.10-1) unstable; urgency=low
 
   * New upstream release rebasing for sourceforge.
