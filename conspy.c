@@ -44,6 +44,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -67,8 +68,8 @@ extern int errno;
 /*
  * Version info.
  */
-static char conspy_date[]	= "2015-09-16";
-static char conspy_version[]	= "1.12";
+static char conspy_date[]	= "2015-09-21";
+static char conspy_version[]	= "1.13";
 
 /*
  * VGA colour definitions, as found in a nibble in an attribute

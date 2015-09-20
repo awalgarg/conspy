@@ -1,3 +1,7 @@
+conspy-1.13 Mon, 21 Sep 2015 09:40:17 +1000
+  Bug: Include <stdint.h> for uint32_t
+       Closes: https://sourceforge.net/p/conspy/tickets/3/
+
 conspy-1.12 Wed, 16 Sep 2015 21:23:09 +1000
   Bug: Fix memory leak.
 
