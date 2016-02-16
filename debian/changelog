@@ -1,3 +1,12 @@
+conspy (1.14-1) unstable; urgency=low
+
+  * Describe kernel limitations in man pages.
+    Closes: #813034.
+  * Infer size of large consoles.
+    Closes: #813035.
+
+ -- Russell Stuart <russell-debian@stuart.id.au>  Tue, 16 Feb 2016 20:41:44 +1000
+
 conspy (1.13-1) unstable; urgency=low
 
   * New upstream release.

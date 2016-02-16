@@ -14,7 +14,7 @@
  * License
  * -------
  *
- * Copyright (c) 2009-2014,2015 Russell Stuart.
+ * Copyright (c) 2009-2014,2015,2016 Russell Stuart.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -68,8 +68,8 @@ extern int errno;
 /*
  * Version info.
  */
-static char conspy_date[]	= "2015-09-21";
-static char conspy_version[]	= "1.13";
+static char conspy_date[]	= "2016-02-16";
+static char conspy_version[]	= "1.14";
 
 /*
  * VGA colour definitions, as found in a nibble in an attribute
@@ -194,6 +194,8 @@ static void usage(char* message, ...);
  */
 static char*		me;
 static struct termios	old_termios;
+static int		opt_columns;
+static int		opt_lines;
 static int		opt_viewonly;
 static int  		tty_handle = -1;
 static char 		tty_name[20];
@@ -248,11 +250,14 @@ struct vidbuf {
   struct vidchar	vidbuf_chars[0];	/* Char in VGA video buf */
 };
 
+#define VIDBUF_SIZE(cols, lines) (sizeof(struct vidbuf) + cols * lines * sizeof(struct vidchar))
+
 /*
  * Options we allow.
  */
 static struct option options[] =
   {
+    {"geometry",	1,	0,	'g'},
     {"version",		0,	0,	'V'},
     {"viewonly",	0,	0,	'v'},
     {0,0,0,0},
@@ -301,8 +306,9 @@ static void usage(char* message, ...)
   }
   fprintf(stderr, "usage: %s [options] [virtual_console].\n", me);
   fprintf(stderr, "options:\n");
-  fprintf(stderr, "  -V,--version   Print %s's version number and exit.\n", me);
-  fprintf(stderr, "  -v,--viewonly  Don't send keystrokes to the console.\n");
+  fprintf(stderr, "  -g G,--geometry=G Console size is G, format COLSxROWS.\n");
+  fprintf(stderr, "  -V,--version      Print %s's version number and exit.\n", me);
+  fprintf(stderr, "  -v,--viewonly     Don't send keystrokes to the console.\n");
   fprintf(stderr, "virtual_console:\n");
   fprintf(stderr, "  omitted  Track the current console.\n");
   fprintf(stderr, "  1..63    Virtual console N.\n");
@@ -337,6 +343,18 @@ static void process_command_line(int argc, char** argv)
   {
     switch (opt)
     {
+      case 'g':
+	opt_lines = 0;
+	opt_columns = strtol(optarg, &end, 10);
+	if (*end == 'x' || *end == 'X') {
+	  opt_lines = strtol(end + 1, &end, 10);
+	}
+	if (*end != '\0' || opt_lines <= 0 || opt_columns <= 0)
+	{
+	  usage("geometry must be COLSxROWS");
+	}
+	printf("%s: version %s %s\n", me, conspy_version, conspy_date);
+	exit(0);
       case 'V':
 	printf("%s: version %s %s\n", me, conspy_version, conspy_date);
 	exit(0);
@@ -564,27 +582,28 @@ static void cleanup()
 static void conspy(int use_colour)
 {
   unsigned short	box;
-  int			buffer_size;
-  int			bytes_read;
+  size_t		bytes_read;
   unsigned int		column;
   attr_t		curses_attribute;
   short			curses_colour;
   int			escape_pressed;
   int			escape_notpressed;
   int			ioerror_count;
-  int			key_count;
-  int			key_index;
+  unsigned int		key_count;
+  unsigned int		key_index;
   uint32_t		keyboard_mode;
   char			keys_pressed[256];
   unsigned int		last_attribute;
   unsigned int		last_columns;
-  unsigned int		last_rows;
+  unsigned int		last_lines;
   unsigned int		line;
   chtype		line_buf[256];
   int			line_chars;
   fd_set		readset;
   int			result;
   struct timeval	timeval;
+  unsigned int		curr_columns;
+  unsigned int		curr_lines;
   int			tty_result;
   unsigned int		video_attribute;
   int			video_char;
@@ -600,8 +619,10 @@ static void conspy(int use_colour)
   key_count = 0;
   last_attribute = ~0U;
   last_columns = 0;
-  last_rows = 0;
-  vidbuf_size = sizeof(*vidbuf);
+  last_lines = 0;
+  curr_columns = opt_columns ? opt_columns : 80;
+  curr_lines = opt_lines ? opt_lines : 25;
+  vidbuf_size = VIDBUF_SIZE(curr_columns, curr_lines) + sizeof(vidchar);
   vidbuf = checked_malloc(vidbuf_size);
   for (;;)
   {
@@ -610,52 +631,73 @@ static void conspy(int use_colour)
      */
     for (;;)
     {
-      if (lseek(device_handle, 0L, SEEK_SET) != 0L)
-	syserror(device_name);
-      bytes_read = read(device_handle, vidbuf, vidbuf_size);
-      if (bytes_read < sizeof(*vidbuf))
-	syserror(device_name);
-      buffer_size =
-	  sizeof(*vidbuf) +
-	  vidbuf->vidbuf_lines * vidbuf->vidbuf_columns * sizeof(struct vidchar);
-      if (buffer_size <= vidbuf_size)
-	break;
-      vidbuf_size = buffer_size;
-      free(vidbuf);
-      vidbuf = checked_malloc(vidbuf_size);
+	if (lseek(device_handle, 0L, SEEK_SET) != 0L)
+	  syserror(device_name);
+	bytes_read = read(device_handle, vidbuf, vidbuf_size);
+	if (bytes_read < sizeof(*vidbuf) || bytes_read > vidbuf_size)
+	  syserror(device_name);
+	if (bytes_read < vidbuf_size)
+	  break;
+	vidbuf_size *= 2;
+	free(vidbuf);
+	vidbuf = checked_malloc(vidbuf_size);
     }
-    if (bytes_read != buffer_size)
-      syserror("read wrong number of chars");
+    if (bytes_read == VIDBUF_SIZE(opt_columns, opt_lines))
+    {
+      curr_columns = opt_columns;
+      curr_lines = opt_lines;
+    }
+    else
+    {
+      int i, j = -1, k = -1;
+      for (i = 0; i <= 7; i += 1)
+      {
+	curr_columns = vidbuf->vidbuf_columns + (i / 2 * 256);
+	curr_lines = vidbuf->vidbuf_lines + (i % 2 * 256);
+	if (bytes_read == VIDBUF_SIZE(curr_columns, curr_lines))
+	{
+	  k = j;
+	  j = i;
+	}
+      }
+      if (j == -1 || k != -1)
+      {
+	fprintf(stderr, "\nCan not guess the geometry of the console.\n");
+	exit(1);
+      }
+      curr_columns = vidbuf->vidbuf_columns + (j / 2 * 256);
+      curr_lines = vidbuf->vidbuf_lines + (j % 2 * 256);
+    }
     /*
      * If the screen size has changed blank out the unused portions.
      */
-    if (vidbuf->vidbuf_lines < last_rows && last_rows < (unsigned)LINES)
+    if (curr_lines < last_lines && last_lines < (unsigned)LINES)
     {
-      move(vidbuf->vidbuf_lines, 0);
+      move(curr_lines, 0);
       clrtobot();
     }
-    if (vidbuf->vidbuf_columns < last_columns && last_columns < (unsigned)COLS)
+    if (curr_columns < last_columns && last_columns < (unsigned)COLS)
     {
-      for (line = 0; line < last_rows && line < (unsigned)LINES; line += 1)
+      for (line = 0; line < last_lines && line < (unsigned)LINES; line += 1)
       {
 	move(line, last_columns);
 	clrtoeol();
       }
     }
-    last_rows = vidbuf->vidbuf_lines;
-    last_columns = vidbuf->vidbuf_columns;
+    last_lines = curr_lines;
+    last_columns = curr_columns;
     /*
      * Write the data to the screen.
      */
     vidchar = vidbuf->vidbuf_chars;
-    for (line = 0; line < vidbuf->vidbuf_lines && line < (unsigned)LINES; line += 1)
+    for (line = 0; line < curr_lines && line < (unsigned)LINES; line += 1)
     {
       line_chars = 0;
-      for (column = 0; column < vidbuf->vidbuf_columns; column += 1)
+      for (column = 0; column < curr_columns; column += 1)
       {
 	if (column >= (unsigned)COLS)
 	{
-	  vidchar += vidbuf->vidbuf_columns - column;
+	  vidchar += curr_columns - column;
 	  break;
 	}
 	video_attribute = VIDCHAR_ATTRIBUTE(vidchar);
@@ -725,7 +767,7 @@ static void conspy(int use_colour)
     {
       bytes_read =
 	read(0, keys_pressed + key_count, sizeof(keys_pressed) - key_count);
-      if (bytes_read < 0)
+      if (bytes_read == ~0U)
 	syserror(tty_name);
     }
     /*

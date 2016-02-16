@@ -1,5 +1,5 @@
-.\" Copyright (c) 2015 Russell Stuart
-.TH CONSPY 1 "Sep 2015" "Version 1.13" "conspy"
+.\" Copyright (c) 2016 Russell Stuart
+.TH CONSPY 1 "Feb 2016" "Version 1.14" "conspy"
 .SH NAME
 conspy \- virtual console spy tool
 .SH SYNOPSIS
@@ -18,9 +18,14 @@ To exit from
 press the escape key three times in quick succession.
 .PP
 .SH COMMAND LINE
-.IP "\fB-V, \fB--version\fP"
+.IP "\fB\-g \fICOLSxROWS\fP, \fB\-\-geometry \fICOLSxROWS\fP"
+Specify the console size.
+.I Conspy
+can almost always correctly guess the size
+so this is only useful when it complains it can't.
+.IP "\fB\-V\fP, \fB\-\-version\fP"
 Print the program's version and exit.
-.IP "\fB-v\fP, \fB--viewonly\fP"
+.IP "\fB\-v\fP, \fB\-\-viewonly\fP"
 Don't send keystrokes to the virtual console.
 .IP "\fIconsole\fP"
 If supplied,
@@ -39,17 +44,22 @@ will be displayed.
 .I Conspy
 ignores the mouse.
 .I Conspy
-may display some non-ASCII characters incorrectly.
+may display some non\-ASCII characters incorrectly.
+.PP
+The kernel reports the console geometry and cursor position
+using bytes which limits both to 255 maximum.
 .I Conspy
-does not handle displays larger than 16000 characters
-(eg 200 rows x 80 columns).
+can usually guess the correct display size from the truncated version,
+but if the cursor position is beyond line 255 or column 255
+.I conspy
+will put it in the wrong place.
 .PP
 .I Conspy
 depends on terminfo and curses working correctly for your
 terminal, and sometimes they don't.  Konsole is/was one
-example of where they don't.  Typing control-L will redraw
+example of where they don't.  Typing control\-L will redraw
 the screen, which usually fixes the mess created.  It also
-sends a control-L to the virtual console, of course.
+sends a control\-L to the virtual console, of course.
 .SH FILES
 .IP "\fB/dev/ttyX\fP, \fB/dev/vc/X\fP"
 The characters typed are sent to this device.
@@ -58,4 +68,4 @@ The latter is for devfs. It is only used if the former does not exist.
 The display of the virtual console is read from here.
 The latter is for devfs. It is only used if the former does not exist.
 .SH AUTHOR
-Russell Stuart, <russell-conspy@stuart.id.au>.
+Russell Stuart, <russell\-conspy@stuart.id.au>.

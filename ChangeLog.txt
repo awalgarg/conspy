@@ -1,3 +1,7 @@
+conspy-1.14 Tue, 16 Feb 2016 20:36:33 +1000
+  Bug: Work around kernel limitations when there are more
+       than 255 lines or 255 columns.
+
 conspy-1.13 Mon, 21 Sep 2015 09:40:17 +1000
   Bug: Include <stdint.h> for uint32_t
        Closes: https://sourceforge.net/p/conspy/tickets/3/
